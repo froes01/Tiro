@@ -1,0 +1,701 @@
+<head> 
+    <meta charset="UTF-8" />
+    <title>Lendas da Arena</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <style type="text/css">
+        
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+<script type="text/javascript">
+var config = {
+    type: Phaser.AUTO,
+    width: 1024,
+    height: 620,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0},
+            debug: false
+        }
+    },
+
+    scene: {
+        preload: preload,
+        create: create,
+        update: update,
+        extend: {
+                    player: null,
+                    healthpoints: null,
+                    reticle: null,
+                    moveKeys: null,
+                    playerBullets: null,
+                    enemyBullets: null,
+                    time: 0,
+                }
+    }
+};
+
+
+
+var player;
+var player2;
+var stars;
+var bombs;
+var platforms;
+var cursors;
+var score = 0;
+var gameOver = false;
+var scoreText;
+var right = false;
+var busy = false;
+var botao;
+var jogar = false;
+var background;
+var passos = false;
+var passosp2 = false;
+var x = 160;
+var xdiag = 113.137;
+var xnegativo = -160;
+var xdiagnegativo = -113.137;
+var boosttime = 0;
+var temposla = 0;
+
+var game = new Phaser.Game(config);
+
+var Bullet = new Phaser.Class({
+
+Extends: Phaser.GameObjects.Image,
+
+initialize:
+
+function Bullet (scene)
+    {
+        Phaser.GameObjects.Image.call(this, scene, 0, 0, 'bomb');
+        this.speed = 1;
+        this.born = 0;
+        this.direction = 0;
+        this.xSpeed = 0;
+        this.ySpeed = 0;
+        this.setSize(12, 12, true);
+    },
+
+    // Fires a bullet from the player to the reticle
+    fire: function (shooter, target)
+    {
+        this.setPosition(shooter.x, shooter.y); // Initial position
+        this.direction = Math.atan( (target.x-this.x) / (target.y-this.y));
+
+        // Calculate X and y velocity of bullet to moves it from shooter to target
+        if (target.y >= this.y)
+        {
+            this.xSpeed = this.speed*Math.sin(this.direction);
+            this.ySpeed = this.speed*Math.cos(this.direction);
+        }
+        else
+        {
+            this.xSpeed = -this.speed*Math.sin(this.direction);
+            this.ySpeed = -this.speed*Math.cos(this.direction);
+        }
+
+        this.rotation = shooter.rotation; // angle bullet with shooters rotation
+        this.born = 0; // Time since new bullet spawned
+    },
+
+    // Updates the position of the bullet each cycle
+    update: function (time, delta)
+    {
+        this.x += this.xSpeed * delta;
+        this.y += this.ySpeed * delta;
+        this.born += delta;
+        if (this.born > 1800)
+        {
+            this.setActive(false);
+            this.setVisible(false);
+        }
+    }
+
+});
+
+function preload ()
+{
+    var progressBar = this.add.graphics();
+            var progressBox = this.add.graphics();
+            progressBox.fillStyle(0x222222, 0.8);
+            progressBox.fillRect(340, 290, 320, 50);
+            
+            var width = this.cameras.main.width;
+            var height = this.cameras.main.height;
+            var logoText = this.make.text ({
+                x: width / 3.4,
+                y: height / 6-60,
+                text: 'Lendas da Arena',
+                style: {
+                    font: '60px Jazz LET',
+                    fill: '#ffffff'
+                }
+            });
+            var loadingText = this.make.text({
+                x: width / 2,
+                y: height / 2 - 50,
+                text: 'Carregando...',
+                style: {
+                    font: '20px monospace',
+                    fill: '#ffffff'
+                }
+            });
+            loadingText.setOrigin(0.5, 0.5);
+            
+            var percentText = this.make.text({
+                x: width / 2,
+                y: height / 2.6 - 5,
+                text: '0%',
+                style: {
+                    font: '18px monospace',
+                    fill: '#ffffff'
+                }
+            });
+            percentText.setOrigin(0.5, 0.5);
+            
+            var assetText = this.make.text({
+                x: width / 2,
+                y: height / 2 + 50,
+                text: '',
+                style: {
+                    font: '18px monospace',
+                    fill: '#ffffff'
+                }
+            });
+            assetText.setOrigin(0.5, 0.5);
+            this.load.on('progress', function (value) {
+                percentText.setText(parseInt(value * 100) + '%');
+                progressBar.clear();
+                progressBar.fillStyle(0xffffff, 1);
+                progressBar.fillRect(350, 300, 300  * value, 30);
+            });
+            
+            this.load.on('fileprogress', function (file) {
+                assetText.setText('Cafés preparados: ' + file.key);
+            });
+            this.load.on('complete', function () {
+                progressBar.destroy();
+                progressBox.destroy();
+                loadingText.destroy();
+                percentText.destroy();
+                assetText.destroy();
+            });
+            
+            this.load.image('logo', 'assets/logo.png');
+            for (var i = 0; i < 500; i++)
+
+    this.load.image('mapa', 'assets/mapaaaa.png');
+    this.load.image('ground', 'assets/platform.png');
+    this.load.image('star', 'assets/star.png');
+    this.load.image('bomb', 'assets/bomb.png');
+    this.load.image('groundvertshort','assets/platformvertshort.png');
+    this.load.image('groundvert', 'assets/platformvert.png');
+    this.load.image('paredegeral', 'assets/mapa1.png');
+    this.load.image('groundvertshort2', 'assets/platformvertshort2.png');
+    this.load.spritesheet('dude', 'assets/dude2.png', { frameWidth: 17, frameHeight: 20 });
+    this.load.image('pilar1', 'assets/pilar1.png');
+    this.load.image('pilar2', 'assets/pilar2.png');
+    this.load.image('pilar3', 'assets/pilar3.png');
+    this.load.image('pilar4', 'assets/pilar4.png');
+    this.load.image('pilar', 'assets/pilar.png');
+    this.load.image('lake1', 'assets/lake1.png');
+    this.load.image('lake2', 'assets/lake2.png');
+    this.load.image('lake3', 'assets/lake3.png');
+    this.load.image('lake4', 'assets/lake4.png');
+    this.load.image('lakea', 'assets/lakea.png');
+    this.load.image('lakeb', 'assets/lakeb.png');
+    this.load.image('lakec', 'assets/lakec.png');
+    this.load.image('click', 'assets/botao.png');
+    this.load.image('background', 'assets/background.png');
+    this.load.image('crosshair', 'assets/crosshair.png');
+    this.load.audio('footstep', 'assets/footstep.mp3');
+    this.load.audio('music', 'assets/music.mp3');
+}
+
+function create ()
+{
+    this.physics.world.setBounds(0, 0, 1024, 620);
+
+    playerBullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+    enemyBullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+
+    reticle = this.physics.add.sprite(800, 700, 'bomb');
+
+    keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    space = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+    this.input.on('pointerdown', function (pointer, time, lastFired) {
+        if (player.active === false)
+            return;        
+            var bullet = playerBullets.get().setActive(true).setVisible(true);
+
+if (bullet)
+{
+    bullet.fire(player, reticle);
+}
+}, this);
+
+game.canvas.addEventListener('mousedown', function () {
+        game.input.mouse.requestPointerLock(false);
+    });
+
+
+ this.input.keyboard.on('keydown_Q', function (event) {
+         if (game.input.mouse.locked)
+             game.input.mouse.releasePointerLock();
+     }, 0, this);
+
+
+this.input.on('pointermove', function (pointer) {
+        if (this.input.mouse.locked)
+        {
+            reticle.x += pointer.movementX;
+            reticle.y += pointer.movementY;
+        }
+    }, this);
+
+    //  A simple background for our game
+    this.add.image(512, 310, 'mapa');
+
+    //botao.setScale(0.3);
+
+    //audio de fundo
+    backgroundmusic = this.sound.add("music", {
+        loop: "true",
+        volume: 0.1,
+        });
+    backgroundmusic.play();
+
+
+    //footstep
+    footstep = this.sound.add("footstep", {
+        loop: true,
+        volume: 3,
+        });
+
+    footstep2 = this.sound.add('footstep', {
+        loop: true,
+        volume: 10,
+    })
+
+    //pilares
+    pilars = this.physics.add.staticGroup();
+    depth = this.physics.add.staticGroup();
+
+    //lago
+    lake = this.physics.add.staticGroup();
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = this.physics.add.staticGroup();
+
+    //sprite personagens
+    player = this.physics.add.sprite(924, 340, 'dude');
+    player.setScale(2);
+    player.setSize(11, 18, true);
+    player.setOffset(3, 3);
+
+    player2 = this.physics.add.sprite(100, 340, 'dude');
+    player2.setScale(2);
+    player2.setSize(11, 18, true);
+    player2.setOffset(3, 3);
+
+    //  Paredes do mapa, pilares
+    platforms.create(713, 40, 'ground');
+    platforms.create(310, 40, 'ground');
+    platforms.create(310, 610, 'ground');
+    platforms.create(713, 610, 'ground');
+    platforms.create(-100, 300, 'ground');
+    platforms.create(-100, 385, 'ground');
+    platforms.create(1124, 300, 'ground');
+    platforms.create(1124, 385, 'ground');
+    platforms.create(90, 528, 'groundvert');
+    platforms.create(934, 528, 'groundvert');
+    platforms.create(90, 157, 'groundvert');
+    platforms.create(934, 157, 'groundvert');
+    platforms.create(-15, 310, 'groundvert');
+    platforms.create(1039, 310, 'groundvert');
+    depth.create(224, 160, 'pilar1');
+    depth.create(800, 161, 'pilar2');
+    depth.create(798, 478, 'pilar3');
+    depth.create(224, 497, 'pilar4');
+    pilars.create(224, 175, 'pilar');
+    pilars.create(800, 175, 'pilar');
+    pilars.create(798, 493, 'pilar');
+    pilars.create(224, 497, 'pilar');
+    lake.create(422, 314, 'lake1');
+    lake.create(422, 230, 'lake2');
+    lake.create(477, 173, 'lake3');
+    lake.create(511, 130, 'lake4');
+    lake.create(374, 485, 'lakea');
+    lake.create(485, 500, 'lakeb');
+    lake.create(513, 553, 'lakec');
+    reticle = this.physics.add.sprite(800, 300, 'crosshair');
+    reticle.setScale(0.04);
+
+    //  Player physics properties. Give the little guy a slight bounce.
+    //player.setBounce(0,2);
+    //player.setCollideWorldBounds(true);
+
+    //animações
+    //player1 carinha
+    this.anims.create({
+        key: 'busy',
+        frames: this.anims.generateFrameNumbers('dude', {start: 4, end: 6}),
+        frameRate: 5,
+        repeat: -1
+    })
+
+    
+    this.anims.create({
+        key: 'walk',
+        frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3}),
+        frameRate: 10,
+        repeat: -1
+
+    });
+
+
+    //player 2 mago
+    this.anims.create({
+        key: 'busy2',
+        frames: this.anims.generateFrameNumbers('dude', {start:  7, end: 9}),
+        frameRate: 5,
+        repeat: -1
+    })
+
+    this.anims.create({
+        key: 'walk2',
+        frames: this.anims.generateFrameNumbers('dude', { start: 10, end: 13}),
+        frameRate: 10,
+        repeat: -1
+
+    });
+
+    //cursores setinhas
+    cursors = this.input.keyboard.createCursorKeys();
+
+
+    bombs = this.physics.add.group();
+
+    //  The score
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
+
+    //  Colisões
+    this.physics.add.collider(player, platforms);
+    this.physics.add.collider(player, pilars);
+    //this.physics.add.collider(stars, platforms);
+    this.physics.add.collider(bombs, platforms);
+    this.physics.add.collider(player, lake);
+    this.physics.add.collider(player2, lake);
+    this.physics.add.collider(player2, platforms);
+    this.physics.add.collider(player2, pilars);
+
+    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
+    this.physics.add.collider(player, bombs, hitBomb, null, this);
+    this.physics.add.overlap(player, player2, colisao, null, this)
+
+    //background
+    background = this.add.image(512, 310, 'background');
+    
+    
+    // clique aqui <--------------------
+    botao = this.physics.add.sprite(512, 310, 'click').setInteractive();
+    botao.on('pointerdown', function () 
+    {
+        botao.setScale(0, 0);
+        background.setScale(0, 0);
+        jogar = true;
+    });
+    botao.setScale(0.3);
+
+    footstep.play({
+        mute: passos,
+    });
+
+}
+
+//function constrainReticle(reticle)
+//{
+  //  var distX = reticle.x-player.x; // X distance between player & reticle
+    //var distY = reticle.y-player.y; // Y distance between player & reticle
+
+    // Ensures reticle cannot be moved offscreen (player follow)
+    //if (distX > 800)
+      //  reticle.x = player.x+800;
+    //else if (distX < -800)
+      //  reticle.x = player.x-800;
+
+    //if (distY > 600)
+      //  reticle.y = player.y+600;
+    //else if (distY < -600)
+      //  reticle.y = player.y-600;
+//}
+
+function update (time, delta)
+{
+    if (gameOver)
+    {
+        return;
+    }
+    //if (jogar)
+    //{
+    //    background.disableBody(true, true);
+    //}
+
+    //alteração da velocidade de movimentação diagonal.
+    if (keyA.isDown && keyW.isDown && jogar)
+    {
+        player.setVelocityX(xdiagnegativo);
+        player.setVelocityY(xdiagnegativo);
+        player.anims.play('walk', true);
+        player.setFlipX(true);
+        passos = true;
+    }
+
+    else if (keyA.isDown && keyS.isDown && jogar)
+    {
+        player.setVelocityX(xdiagnegativo);
+        player.setVelocityY(xdiag);
+        player.anims.play('walk', true);
+        player.setFlipX(true);
+        passos = true;
+    }
+
+    else if (keyD.isDown && keyW.isDown && jogar)
+    {
+        player.setVelocityX(xdiag);
+        player.setVelocityY(xdiagnegativo);
+        player.anims.play('walk', true);
+        player.setFlipX(false);
+        passos = true;
+    }
+
+    else if (keyD.isDown && keyS.isDown && jogar)
+    {
+        player.setVelocityX(xdiag);
+        player.setVelocityY(xdiag);
+        right = true;
+        player.anims.play('walk', true);
+        player.setFlipX(false);
+        passos = true;
+    }    
+    // - fim -
+
+    //direções normais
+    else if (keyA.isDown && jogar)
+    {
+        player.setVelocityX(xnegativo);
+        right = false;
+        player.anims.play('walk', true);
+        player.setFlipX(true);
+        passos = true;
+        player.setVelocityY(0);
+    }
+     else if (keyD.isDown && jogar)
+    {
+        player.setVelocityX(x);
+        player.anims.play('walk', true);
+        player.setFlipX(false);
+        passos = true;
+        player.setVelocityY(0);
+    }
+
+    else 
+    {
+        player.setVelocityX(0);
+        player.anims.play('busy', true);
+    }
+    
+    if (keyW.isDown && jogar)
+    {
+        player.setVelocityY(xnegativo);
+        passos = true;
+    }
+    
+    else if (keyS.isDown && jogar)
+    {
+        player.setVelocityY(x);
+        passos = true;
+    }
+
+    else 
+    {
+        //player.setVelocityX(0);
+        player.setVelocityY(0);
+        passos = false; 
+    }
+    //fim
+
+
+    //player 2
+
+    if (cursors.up.isDown && cursors.left.isDown && jogar)
+    {
+        player2.setVelocityX(-113.137);
+        player2.setVelocityY(-113.137);
+        player2.anims.play('walk2', true);
+        player2.setFlipX(true);
+        passosp2 = true;
+    }
+    else if (cursors.up.isDown && cursors.right.isDown && jogar)
+    {
+        player2.setVelocityX(113.137);
+        player2.setVelocityY(-113.137);
+        player2.anims.play('walk2', true);
+        player2.setFlipX(false);
+        passosp2 = true;
+    }
+    else if (cursors.down.isDown && cursors.left.isDown && jogar)
+    {
+        player2.setVelocityX(-113.137);
+        player2.setVelocityY(113.137);
+        player2.anims.play('walk2', true);
+        player2.setFlipX(true);
+        passosp2 = true;
+    }
+    else if (cursors.down.isDown && cursors.right.isDown && jogar)
+    {
+        player2.setVelocityX(113.137);
+        player2.setVelocityY(113.137);
+        player2.anims.play('walk2', true);
+        player2.setFlipX(false);
+        passosp2 = true;
+    }
+
+    else if (cursors.left.isDown && jogar)
+   
+    {
+        player2.setVelocityX(-160);
+        right = false;
+        player2.anims.play('walk2', true);
+        player2.setFlipX(true);
+        passosp2 = true;
+    }
+    else if (cursors.right.isDown && jogar)
+    {
+        player2.setVelocityX(160);
+        player2.anims.play('walk2', true);
+        player2.setFlipX(false);
+        passosp2 = true;
+    }
+    else 
+    {
+        player2.setVelocityX(0);
+        player2.anims.play('busy2', true);
+        passosp2 = false;
+    }
+
+    if (cursors.up.isDown && jogar)
+    {
+        player2.setVelocityY(-160);
+        passosp2 = true;
+    }
+    
+    else if (cursors.down.isDown && jogar)
+    {
+        player2.setVelocityY(160);
+        passosp2 = true;
+    }
+    else
+    {
+        player2.setVelocityY(0);
+    }   
+    //fim
+
+
+    //sons de passos
+    if (passos)
+    {   
+        footstep.play({
+            loop: true,
+            volume: 5,
+        });
+    }
+    else
+    {
+        footstep.stop();
+    }
+
+    if (passosp2)
+    {   
+        footstep2.play({
+            loop: true,
+            volume: 5,
+        });
+    }
+    else
+    {
+        footstep2.stop();
+    }
+    //fim
+
+    //boost
+    if (space.isDown && jogar && boosttime > 100)
+    {
+        x = 1000;
+        xnegativo = -1000;
+        xdiag = 601.04;
+        xdiagnegativo = -601.04;
+        temposla ++
+        if (temposla > 5)
+        {
+            boosttime = 0;
+            temposla = 0;
+        }
+    }
+    
+    else
+    {
+        x = 160;
+        xnegativo = -160;
+        xdiag = 113.137;
+        xdiagnegativo = -113.137
+        boosttime ++
+
+    
+    }
+    //reticle.body.velocity.x = player.body.velocity.x;
+    //reticle.body.velocity.y = player.body.velocity.y;
+
+    // Constrain velocity of player
+    //constrainVelocity(player, 500);
+
+    // Constrain position of constrainReticle
+   // constrainReticle(reticle);
+}
+
+
+function colisao (player, player2)
+{
+    this.physics.pause();
+    player.setTint(0xff0000);
+    logo = this.add.image('512', '310', 'logo');
+    logo.setScale(5);
+}
+
+
+function hitBomb (player, bomb,)
+{
+    this.physics.pause();
+    player.setTint(0xff0000);
+    player.anims.play('turn');
+    player.anims.play('down');
+    gameOver = true;
+}
+
+</script>
+
+</body>
+
+</html>
